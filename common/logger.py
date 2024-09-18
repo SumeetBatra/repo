@@ -293,7 +293,7 @@ class WANDBOutputFormat(KVWriter):
         step: int = 0,
     ) -> None:
 
-        wandb_dict = {}
+        wandb_dict = {'env_step': step}
         for (key, value), (_, excluded) in zip(
             sorted(key_values.items()), sorted(key_excluded.items())
         ):
