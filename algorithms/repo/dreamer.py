@@ -509,7 +509,7 @@ class Dreamer:
 
     def get_param_dict(self):
         params = {
-            "step": self.step,
+            "env_step": self.step,
             "encoder": self.encoder.state_dict(),
             "transition_model": self.transition_model.state_dict(),
             "obs_model": self.obs_model.state_dict(),
