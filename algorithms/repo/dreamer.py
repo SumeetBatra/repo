@@ -492,10 +492,10 @@ class Dreamer:
                 episode_success += info.get("success", 0)
         self.logger.record(f"eval/episode_reward{suffix}", episode_reward)
         self.logger.record("test/success", float(episode_success > 0))
-        if self.c.pixel_obs:
-            # video shape: (T, N, C, H, W) -> (N, T, C, H, W)
-            video = Video(np.stack(frames).transpose(1, 0, 2, 3, 4), fps=30)
-            self.logger.record(f"test/video{suffix}", video, exclude="stdout")
+        # if self.c.pixel_obs:
+        #     # video shape: (T, N, C, H, W) -> (N, T, C, H, W)
+        #     video = Video(np.stack(frames).transpose(1, 0, 2, 3, 4), fps=30)
+        #     self.logger.record(f"test/video{suffix}", video, exclude="stdout")
         self.toggle_train(True)
 
     def save_checkpoint(self):
