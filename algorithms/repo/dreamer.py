@@ -23,6 +23,7 @@ from common.utils import (
 from .models.actor_critic import ActorModel, ValueModel
 from .models.decoder import ObservationModel, RewardModel
 from .models.encoder import Encoder
+from .models.quantized import QuantizedEncoder, QuantizedDecoder
 from .models.rssm import TransitionModel
 from .models.utils import bottle, EnsembleDynamicsModel, InverseDynamicsModel
 
@@ -30,10 +31,11 @@ from .models.utils import bottle, EnsembleDynamicsModel, InverseDynamicsModel
 
 
 class Dreamer:
-    def __init__(self, config, env, eval_env, logger):
+    def __init__(self, config, env, color_env, distracting_env, logger):
         self.c = config
         self.env = env
-        self.eval_env = eval_env
+        self.color_env = color_env
+        self.distracting_env = distracting_env
         self.logger = logger
         self.device = get_device()
 
@@ -55,11 +57,16 @@ class Dreamer:
         action_size = np.prod(env.action_space.shape).item()
 
         # RSSM
-        self.encoder = Encoder(
-            not config.pixel_obs,
-            obs_size,
-            config.embedding_size,
-            config.cnn_activation_function,
+        # self.encoder = Encoder(
+        #     not config.pixel_obs,
+        #     obs_size,
+        #     config.embedding_size,
+        #     config.cnn_activation_function,
+        # ).to(self.device)
+
+        self.encoder = QuantizedEncoder(
+            obs_shape=env.observation_space.shape,
+            num_latents=config.embedding_size,
         ).to(self.device)
 
         self.transition_model = TransitionModel(
@@ -77,7 +84,7 @@ class Dreamer:
             config.belief_size,
             config.state_size,
             config.embedding_size,
-            config.cnn_activation_function,
+            activation_function='gelu',
         ).to(self.device)
 
         self.reward_model = RewardModel(
@@ -441,7 +448,9 @@ class Dreamer:
 
             # Evaluate agent
             if self.step % self.c.eval_every == 0:
-                self.eval_agent()
+                self.eval_agent(self.env)
+                self.eval_agent(self.color_env, suffix='_color_hard')
+                self.eval_agent(self.distracting_env, suffix='_distracting')
 
             # Save checkpoint
             if self.step % self.c.checkpoint_every == 0:
@@ -454,10 +463,10 @@ class Dreamer:
 
             self.step += 1
 
-    def eval_agent(self):
+    def eval_agent(self, env, suffix=''):
         self.toggle_train(False)
         belief, posterior_state, action_tensor = self.init_latent_and_action()
-        obs = self.eval_env.reset()
+        obs = env.reset()
         done = False
         episode_reward = 0
         episode_success = 0
@@ -473,7 +482,7 @@ class Dreamer:
                     belief, posterior_state, action_tensor, obs_tensor, False
                 )
                 action = to_np(action_tensor)[0]
-                next_obs, reward, done, info = self.eval_env.step(action)
+                next_obs, reward, done, info = env.step(action)
                 if self.c.pixel_obs:
                     obs_hat = to_np(self.obs_model(belief, posterior_state))
                     obs_hat = postprocess(obs_hat)[0]
@@ -481,12 +490,12 @@ class Dreamer:
                 obs = next_obs
                 episode_reward += reward
                 episode_success += info.get("success", 0)
-        self.logger.record("test/return", episode_reward)
+        self.logger.record(f"eval/episode_reward{suffix}", episode_reward)
         self.logger.record("test/success", float(episode_success > 0))
         if self.c.pixel_obs:
             # video shape: (T, N, C, H, W) -> (N, T, C, H, W)
             video = Video(np.stack(frames).transpose(1, 0, 2, 3, 4), fps=30)
-            self.logger.record("test/video", video, exclude="stdout")
+            self.logger.record(f"test/video{suffix}", video, exclude="stdout")
         self.toggle_train(True)
 
     def save_checkpoint(self):

@@ -1,5 +1,6 @@
-import gym
+import gymnasium as gym
 import sys
+import os
 from functools import partial
 
 sys.path.append("./environments")
@@ -15,8 +16,69 @@ from .wrappers import (
     FrankaWrapper,
     MazeWrapper,
 )
+from dmcontrol_generalization_benchmark.src.env.dmc2gym import dmc2gym
+from dmcontrol_generalization_benchmark.src.env.wrappers import FrameStack, DMCObsWrapper, ColorWrapper
+from dmcontrol_generalization_benchmark.src import utils
+
 
 gym.logger.set_level(40)
+
+
+def make_env_dmcgb(config):
+    env = dmc2gym.make(
+        domain_name=config.domain_name,
+        task_name=config.task_name,
+        frame_skip=2,
+        seed=config.seed,
+        from_pixels=True,
+        visualize_reward=False,
+        height=64,
+        width=64,
+        episode_length=1000,
+        is_distracting_cs=False
+    )
+    env = NormalizeAction(env)
+    env = TimeLimit(env, 1000)
+
+    color_env = dmc2gym.make(
+        domain_name=config.domain_name,
+        task_name=config.task_name,
+        frame_skip=2,
+        seed=config.seed,
+        from_pixels=True,
+        visualize_reward=False,
+        height=64,
+        width=64,
+        episode_length=1000,
+        is_distracting_cs=False
+    )
+    color_env = NormalizeAction(color_env)
+    color_env = TimeLimit(color_env, 1000)
+    color_env = FrameStack(color_env, 1)
+    color_env = ColorWrapper(color_env, 'color_hard')
+
+    paths = []
+    loaded_paths = [os.path.join(dir_path, 'DAVIS/JPEGImages/480p') for dir_path in utils.load_config('datasets')]
+    for path in loaded_paths:
+        if os.path.exists(path):
+            paths.append(path)
+    distracting_env = dmc2gym.make(
+        domain_name=config.domain_name,
+        task_name=config.task_name,
+        frame_skip=2,
+        seed=config.seed,
+        from_pixels=True,
+        visualize_reward=False,
+        height=64,
+        width=64,
+        episode_length=1000,
+        is_distracting_cs=True,
+        background_dataset_paths=paths,
+        distracting_cs_intensity=0.025
+    )
+    distracting_env = NormalizeAction(distracting_env)
+    distracting_env = TimeLimit(distracting_env, 1000)
+    return env, color_env, distracting_env
 
 
 def make_env(env_id, seed, pixel_obs=False):
@@ -91,7 +153,7 @@ def make_env(env_id, seed, pixel_obs=False):
             f"{task}-v0",
             obs_mode="rgbd",
             control_mode="pd_ee_delta_pose",
-            reward_mode="dense",
+            reward_mode="normalized_dense",
             camera_cfgs=dict(base_camera=dict(width=64, height=64, p=pose.p, q=pose.q)),
             **kwargs,
         )
@@ -104,7 +166,7 @@ def make_env(env_id, seed, pixel_obs=False):
         env = CastObs(env)
 
     # Set seed
-    env.seed(seed)
+    # env.seed(seed)
     env.action_space.seed(seed)
     env.observation_space.seed(seed)
     return env

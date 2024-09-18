@@ -21,6 +21,7 @@ from transforms3d.euler import euler2quat
 
 camera_poses = {
     "PickCube": look_at([0.2, 0.4, 0.4], [0.0, 0.0, 0.3]),
+    "LiftCube": look_at([0.2, -0.4, 0.4], [0.0, 0.0, 0.3]),
     "TurnFaucet": look_at([0.2, 0.4, 0.4], [0.0, 0.0, 0.3]),
     "PushCubeMatterport": look_at([0.2, -0.4, 0.4], [0.0, 0.0, 0.3]),
     "LiftCubeMatterport": look_at([0.2, -0.4, 0.4], [0.0, 0.0, 0.3]),
@@ -30,6 +31,7 @@ camera_poses = {
 
 env_kwargs = {
     "PickCube": {},
+    "LiftCube": {},
     "TurnFaucet": {"model_ids": "5021"},
     "PushCubeMatterport": {},
     "LiftCubeMatterport": {},
@@ -367,8 +369,10 @@ class ManiSkillWrapper(gym.Wrapper):
             return state
 
     def reset(self, **kwargs):
-        return self.observation(self.env.reset(reconfigure=True, **kwargs))
+        obs, info = self.env.reset(options={'reconfigure': True})
+        return self.observation(obs)
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, done, trunc, info = self.env.step(action)
+        done = done or trunc
         return self.observation(obs), reward, done, info

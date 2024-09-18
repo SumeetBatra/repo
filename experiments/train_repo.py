@@ -2,23 +2,27 @@ from copy import deepcopy
 
 from setup import AttrDict, parse_arguments, set_seed, set_device, setup_logger
 from algorithms.repo import Dreamer, MultitaskDreamer, RePo, MultitaskRePo, TIA
-from environments import make_env, make_multitask_env
+from environments import make_env, make_multitask_env, make_env_dmcgb
 
 
 def get_config():
     config = AttrDict()
     config.algo = "repo"
     config.env_id = "dmc_distracted-walker-walk"
+    config.domain_name = "cartpole"
+    config.task_name = "balance"
     config.expr_name = "default"
     config.seed = 0
     config.use_gpu = True
     config.gpu_id = 0
+    config.wandb_group = "repo"
+    config.wandb_run_name = "repo_cartpole_balance"
 
     # Dreamer
     config.pixel_obs = True
-    config.num_steps = 500000
-    config.replay_size = 500000
-    config.prefill = 5000
+    config.num_steps = 1_000_000
+    config.replay_size = 1_000_000
+    config.prefill = 5_000
     config.train_every = 500
     config.train_steps = 100
     config.eval_every = 5000
@@ -89,18 +93,19 @@ if __name__ == "__main__":
         env = make_multitask_env(config.env_id, config.seed, config.pixel_obs)
         eval_env = make_multitask_env(config.env_id, config.seed, config.pixel_obs)
     else:
-        env = make_env(config.env_id, config.seed, config.pixel_obs)
-        eval_env = make_env(config.env_id, config.seed, config.pixel_obs)
+        # env = make_env(config.env_id, config.seed, config.pixel_obs)
+        # eval_env = make_env(config.env_id, config.seed, config.pixel_obs)
+        env, color_env, distracting_env = make_env_dmcgb(config)
 
     # Sync video distractors
-    if getattr(eval_env.unwrapped, "_img_source", None) is not None:
-        eval_env.unwrapped._bg_source = deepcopy(env.unwrapped._bg_source)
+    # if getattr(eval_env.unwrapped, "_img_source", None) is not None:
+    #     eval_env.unwrapped._bg_source = deepcopy(env.unwrapped._bg_source)
 
     # Agent
     if config.algo == "dreamer":
-        algo = Dreamer(config, env, eval_env, logger)
+        algo = Dreamer(config, env, color_env, distracting_env, logger)
     elif config.algo == "repo":
-        algo = RePo(config, env, eval_env, logger)
+        algo = RePo(config, env, color_env, distracting_env, logger)
     elif config.algo == "tia":
         algo = TIA(config, env, eval_env, logger)
     elif config.algo == "dreamer_multitask":

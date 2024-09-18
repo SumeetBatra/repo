@@ -93,10 +93,10 @@ def save_cfg(base_dir, cfg):
 def setup_logger(config):
     # Initialize WANDB
     wandb.init(
-        project=os.environ.get("WANDB_PROJECT", "minimal-rl"),
-        entity=os.environ.get("MY_WANDB_ID", None),
-        group=config.env_id,
-        job_type=config.algo,
+        project="ai_sim2real",
+        entity="qdrl",
+        group=config.wandb_group,
+        name=config.wandb_run_name,
         config=config,
     )
 
