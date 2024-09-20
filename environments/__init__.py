@@ -28,7 +28,7 @@ def make_env_dmcgb(config):
     env = dmc2gym.make(
         domain_name=config.domain_name,
         task_name=config.task_name,
-        frame_skip=2,
+        frame_skip=1,
         seed=config.seed,
         from_pixels=True,
         visualize_reward=False,
@@ -39,11 +39,12 @@ def make_env_dmcgb(config):
     )
     env = NormalizeAction(env)
     env = TimeLimit(env, 1000)
+    env = ActionRepeat(env, 2)
 
     color_env = dmc2gym.make(
         domain_name=config.domain_name,
         task_name=config.task_name,
-        frame_skip=2,
+        frame_skip=1,
         seed=config.seed,
         from_pixels=True,
         visualize_reward=False,
@@ -54,6 +55,7 @@ def make_env_dmcgb(config):
     )
     color_env = NormalizeAction(color_env)
     color_env = TimeLimit(color_env, 1000)
+    color_env = ActionRepeat(color_env, 2)
     color_env = FrameStack(color_env, 1)
     color_env = ColorWrapper(color_env, 'color_hard')
 
@@ -65,7 +67,7 @@ def make_env_dmcgb(config):
     distracting_env = dmc2gym.make(
         domain_name=config.domain_name,
         task_name=config.task_name,
-        frame_skip=2,
+        frame_skip=1,
         seed=config.seed,
         from_pixels=True,
         visualize_reward=False,
@@ -78,6 +80,7 @@ def make_env_dmcgb(config):
     )
     distracting_env = NormalizeAction(distracting_env)
     distracting_env = TimeLimit(distracting_env, 1000)
+    distracting_env = ActionRepeat(distracting_env, 2)
     return env, color_env, distracting_env
 
 
