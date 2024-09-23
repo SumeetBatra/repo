@@ -54,8 +54,8 @@ def make_env_dmcgb(config):
         is_distracting_cs=False
     )
     color_env = NormalizeAction(color_env)
-    color_env = TimeLimit(color_env, 1000)
     color_env = ActionRepeat(color_env, 2)
+    color_env = TimeLimit(color_env, 1000)
     color_env = FrameStack(color_env, 1)
     color_env = ColorWrapper(color_env, 'color_hard')
 
